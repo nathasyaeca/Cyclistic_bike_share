@@ -1,0 +1,420 @@
+---
+title: "Cyclistic_bike_share_case"
+author: "Nathasya Pramudita"
+date: "2023-06-27"
+output:
+  html_document:
+    code_folding: show
+    toc: yes
+    toc_depth: 3
+    theme: journal
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+Cyclistic is a bike share company in Chicago. Owned 5,824 bicycles that are geotracked and locked into a network of 692 stations across Chicago. The bike can be unlocked from one station and returned to any other station in the system anytime.
+
+Until now, Cyclistic’s marketing strategy relied on building general awareness and appealing to broad consumer segments.
+One approach that helped make these things possible was the flexibility of its pricing plans: single-ride passes, full-day passes,
+and annual memberships. Customers who purchase single-ride or full-day passes are referred to as casual riders. While customers
+who purchase annual memberships are Cyclistic members
+
+## Stakeholder
+
+1. Cyclistic: A bike-share program that features more than 5,800 bicycles and 600 docking stations. There's other type of bike that Cyclistic over to the customer to help people with disabilities and riders who can't use a standard two-wheeled bike.
+
+2. Lily Moreno: The director of marketing and manager of analytics team.
+
+3. Cyclistic Marketing analytics team: Team who're responsible for collecting, analyzing, and reporting data that helps guide Cyclistic marketing strategy.
+
+4. Cyclistic Executive Team: consist of all the Executive team that will decided (take act) whether to approve the recommended or not.
+
+## Key Takeaway
+
+- Cyclistic's finance analysts have concluded that annual members are much more profitable than casual riders. So to attract casual riders into members, we need to find the differences of `annual member` and `casual rider`, and find the pattern for casual rider to get interest to join and be an annual member.
+
+- It's much more convenient to convert casual riders into annual members than attract new user into using our platform.
+
+- The majority of riders opt for traditional bikes; about
+8% of riders use the assistive options. Cyclistic users are more likely to ride for leisure, but about 30% use them to
+commute to work each day.
+
+# Prepare the data
+
+The data that we get is from [Motivate International Inc](https://divvy-tripdata.s3.amazonaws.com/index.html). This data contain from 2014-2023. But for the sake of saving time, I just used data from July 2022 to October 2022.
+
+## Install package
+
+Some packages that need to get install to complete this case study is:
+
+1. Tidyverse
+2. Lubridate
+3. Skimr
+5. Geosphere
+
+```{r install all package, echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
+library(tidyverse)
+library(lubridate)
+library(skimr)
+library(geosphere)
+```
+
+### Import the Dataset
+
+After that we need to import all the dataset that we need, which is the data of Cyclistic historical trip from July 2022 to October 2022.
+
+```{r importing data}
+tripdata_july2022 <- read.csv("~/Case Study/Cyclistic Case Study/202207-divvy-tripdata.csv")
+tripdata_august2022 <- read.csv("~/Case Study/Cyclistic Case Study/202208-divvy-tripdata.csv")
+tripdata_september2022 <- read.csv("~/Case Study/Cyclistic Case Study/202209-divvy-tripdata.csv")
+tripdata_october2022 <- read.csv("~/Case Study/Cyclistic Case Study/202210-divvy-tripdata.csv")
+```
+
+Before we dive deep into the data, we need to see metadata and preview of our data frame first.
+
+```{r dataframe of Cyclistic case study}
+head(tripdata_july2022)
+glimpse(tripdata_july2022)
+
+head(tripdata_august2022)
+glimpse(tripdata_august2022)
+
+head(tripdata_september2022)
+glimpse(tripdata_september2022)
+
+head(tripdata_october2022)
+glimpse(tripdata_september2022)
+```
+
+# Cleaning Proses
+
+## Check unique and duplicate date
+
+After reviewing the data frame, we need to know how much unique `ride_id` variable on every data frame that we import.
+
+```{r unique, echo=FALSE}
+n_unique(tripdata_july2022$ride_id)
+n_unique(tripdata_august2022$ride_id)
+n_unique(tripdata_september2022$ride_id)
+n_unique(tripdata_october2022$ride_id)
+```
+
+They have different unique `ride_id` it's because their total user in the end of each month is always different.
+
+Next step is we remove duplicate and every NA (*null*) value in each variable (because they can interfere the process of analyze and visualize the data later)
+
+```{r find duplicate value, echo=TRUE}
+
+# deleted duplicated and NA value on all dataframe
+
+tripdata_july2022 <- tripdata_july2022 %>%
+  distinct() %>%
+  drop_na()
+
+tripdata_august2022 <- tripdata_august2022 %>%
+  distinct() %>%
+  drop_na()
+
+tripdata_september2022 <- tripdata_september2022 %>%
+  distinct() %>%
+  drop_na()
+
+tripdata_october2022 <- tripdata_october2022 %>%
+  distinct() %>%
+  drop_na()
+```
+
+## Changing class in our data frame
+
+Knowing that we don't have any duplicate and NA value in our data, we can move to the next steps. There's some inconsistency in our data type if we see variable `started_at` and `ended_at` it's suppose to be date-time data type, but R read it as `chr` or character, so we need to changed all that variable into date-time or POXISct it first.
+
+```{r changing chr class to date-time}
+tripdata_july2022$started_at <- as.POSIXct(tripdata_july2022$started_at, format = "%Y-%m-%d %H:%M:%S")
+tripdata_july2022$ended_at <- as.POSIXct(tripdata_july2022$ended_at, format = "%Y-%m-%d %H:%M:%S")
+tripdata_august2022$started_at <- as.POSIXct(tripdata_august2022$started_at, format = "%Y-%m-%d %H:%M:%S")
+tripdata_august2022$ended_at <- as.POSIXct(tripdata_august2022$ended_at, format = "%Y-%m-%d %H:%M:%S")
+tripdata_september2022$started_at <- as.POSIXct(tripdata_september2022$started_at, format = "%Y-%m-%d %H:%M:%S")
+tripdata_september2022$ended_at <- as.POSIXct(tripdata_september2022$ended_at, format = "%Y-%m-%d %H:%M:%S")
+tripdata_october2022$started_at <- as.POSIXct(tripdata_october2022$started_at, format = "%Y-%m-%d %H:%M:%S")
+tripdata_october2022$ended_at <- as.POSIXct(tripdata_october2022$ended_at, format = "%Y-%m-%d %H:%M:%S")
+```
+
+## Calculate distance (m) from longitude and latitude
+
+To find if there's any differences in distance between Casual user and annual Member, we need to changes the longitude and latitude two point coordinates into single distance in metric system. To change it, we used `geosphere` package. After we calculate it to meter, we delete four variable that contain longitude and latitude coordinates, which is `start_lng`, `start_lat`, `end_lng`, and `end_lat`.
+
+```{r combine and delete variables}
+# calculating longitude and latitude into meter
+tripdata_july2022$dist <- distGeo(matrix(c(tripdata_july2022$start_long, tripdata_july2022$start_lat, tripdata_july2022$end_long, tripdata_july2022$end_lat), ncol = 2))
+
+tripdata_august2022$dist <- distGeo(matrix(c(tripdata_august2022$start_long, tripdata_august2022$start_lat, tripdata_august2022$end_long, tripdata_august2022$end_lat), ncol = 2))
+
+tripdata_september2022$dist <- distGeo(matrix(c(tripdata_september2022$start_long, tripdata_september2022$start_lat, tripdata_september2022$end_long, tripdata_september2022$end_lat), ncol = 2))
+
+tripdata_october2022$dist <- distGeo(matrix(c(tripdata_october2022$start_long, tripdata_october2022$start_lat, tripdata_october2022$end_long, tripdata_october2022$end_lat), ncol = 2))
+
+
+# delete longitude and latitude coordination
+tripdata_july2022 <- tripdata_july2022 %>%
+  select(-(start_lat:end_lng))
+tripdata_august2022 <- tripdata_august2022 %>%
+  select(-(start_lat:end_lng))
+tripdata_september2022 <- tripdata_september2022 %>%
+  select(-(start_lat:end_lng))
+tripdata_october2022 <- tripdata_october2022 %>%
+  select(-(start_lat:end_lng))
+```
+
+## Make new variable to count total trip
+
+```{r total trip each user}
+tripdata_july2022$total_trip <- difftime(tripdata_july2022$ended_at, tripdata_july2022$started_at, units = "mins")
+
+tripdata_august2022$total_trip <- difftime(tripdata_august2022$ended_at, tripdata_august2022$started_at, units = "mins")
+
+tripdata_september2022$total_trip <- difftime(tripdata_september2022$ended_at, tripdata_september2022$started_at, units = "mins")
+
+tripdata_october2022$total_trip <- difftime(tripdata_october2022$ended_at, tripdata_october2022$started_at, units = "mins")
+```
+
+
+After that we'll see if our data is ready to get analyze by checking our data frame again.
+
+```{r check the data frame after cleaning process}
+str(tripdata_july2022)
+str(tripdata_august2022)
+str(tripdata_september2022)
+str(tripdata_october2022)
+```
+
+
+# Analyze and share phase
+
+After we conclude that our data is clean, and we can hold the integrity of our dataset. We jump to the next crucial step, which is analyze and make visualization out of it, so our stakeholder (especially our high rank Executive) can implement something out of our finding (data-driven decision making), for the benefit of their company.
+
+## Find key difference of Casual and annual Member of Cyclist
+
+### Average mean distance and trip time of Casual and Member user
+
+```{r AVG of usage user}
+# See difference in distance between Casual and Member
+# Disclaimer : mean_dist column is in meter
+avg_dist_july <- tripdata_july2022 %>%
+  group_by(member_casual) %>%
+  drop_na %>%
+  summarize(mean_dist = mean(dist), mean_total_trip = mean(total_trip))
+
+avg_dist_august <- tripdata_august2022 %>%
+  group_by(member_casual) %>%
+  drop_na() %>%
+  summarize(mean_dist = mean(dist), mean_total_trip = mean(total_trip))
+
+avg_dist_sept <- tripdata_september2022 %>%
+  group_by(member_casual) %>%
+  drop_na %>%
+  summarize(mean_dist = mean(dist), mean_total_trip = mean(total_trip))
+
+avg_dist_oct <- tripdata_october2022 %>%
+  group_by(member_casual) %>%
+  drop_na() %>%
+  summarize(mean_dist = mean(dist), mean_total_trip = mean(total_trip))
+```
+
+### Visualizing different distance between Casual and Member
+
+Now we see it from visualization point of view, so it's easier for us to understand it.
+
+```{r viz of AVG usage user in July, echo=FALSE}
+avg_dist_july %>%
+  ggplot(aes(x=member_casual, y=mean_dist, fill=member_casual)) +
+  geom_col() +
+  labs(x = "", y = "distance in Meter", fill="User",
+      title="Comparison Average Distance of Casual and Member User in July",
+      fill="User: ")+
+  theme(legend.position = "bottom")+
+  scale_fill_brewer(palette="Pastel1")
+```
+
+
+```{r viz of AVG usage user in August, echo=FALSE}
+avg_dist_august %>%
+  ggplot(aes(x=member_casual, y=mean_dist, fill=member_casual)) +
+  geom_col() +
+  labs(x = "", y = "distance in Meter", fill="User",
+      title="Comparison Average Distance of Casual and Member User in August",
+      fill="User: ")+
+  theme(legend.position = "bottom")+
+  scale_fill_brewer(palette="Pastel2")
+```
+
+
+```{r viz of AVG usage user in September, echo=F}
+avg_dist_sept %>%
+  ggplot(aes(x=member_casual, y=mean_dist, fill=member_casual)) +
+  geom_col() +
+  labs(x = "", y = "distance in Meter", fill="User",
+      title="Comparison Average Distance of Casual and Member User in September")+
+  theme(legend.position = "bottom")+
+  scale_fill_brewer(palette="Pastel1")
+```
+
+
+```{r viz of AVG usage user in October, echo=FALSE}
+avg_dist_oct %>%
+  ggplot(aes(x=member_casual, y=mean_dist, fill=member_casual)) +
+  geom_col() +
+  labs(x = "", y = "distance in Meter", fill="User",
+      title="Comparison Average Distance of Casual and Member User in October")+
+  theme(legend.position = "bottom")+
+  scale_fill_brewer(palette="Pastel2")
+```
+
+There's consistency in our data, with each month `member` user is using shorted distance than `casual` user. It's seems odd if we think that "Becoming member is much more inexpensive than only using it casually". We need to finding out more in other sector.
+
+### Visualizing total trip using Cyclist platform
+
+Now we see how much time average user using Cyclist platform based on different user type.
+
+```{r Visualizing total trip user in July, echo=FALSE, message=FALSE}
+avg_dist_july %>%
+  ggplot(aes(x=member_casual, y=mean_total_trip, fill=member_casual)) +
+  geom_col() +
+  labs(x = "", y = "distance in Minutes", fill = "User",
+      title="Comparison Average Total Trip of Casual and Member User in July")+
+  theme(legend.position = "bottom")+
+  scale_fill_brewer(palette="Set1")
+```
+
+```{r Visualizing total trip user in august, echo=FALSE, message=FALSE}
+avg_dist_august %>%
+  ggplot(aes(x=member_casual, y=mean_total_trip, fill=member_casual)) +
+  geom_col() +
+  labs(x = "", y = "distance in Minutes", fill = "User",
+      title="Comparison Average Total Trip of Casual and Member User in August")+
+  theme(legend.position = "bottom")+
+  scale_fill_brewer(palette="Set2")
+```
+
+```{r Visualizing total trip user in September, echo=FALSE, message=FALSE}
+avg_dist_sept %>%
+  ggplot(aes(x=member_casual, y=mean_total_trip, fill=member_casual)) +
+  geom_col() +
+  labs(x = "", y = "distance in Minutes", fill = "User",
+      title="Comparison Average Total Trip of Casual and Member User in September")+
+  theme(legend.position = "bottom")+
+  scale_fill_brewer(palette = "Set1")
+```
+
+```{r Visualizing total trip user in October, echo=FALSE, message=FALSE}
+avg_dist_oct %>%
+  ggplot(aes(x=member_casual, y=mean_total_trip, fill=member_casual)) +
+  geom_col() +
+  labs(x = "", y = "distance in Minutes", fill = "User",
+      title="Comparison Average Total Trip of Casual and Member User in October")+
+  theme(legend.position = "bottom")+
+  scale_fill_brewer(palette = "Set1")
+```
+
+Our finding is still consistent. Between `casual` and `member` user, `casual users` total trip is much more long if we compare to `annual member` user.
+
+## Frequent station that our user used
+
+Other question is I want to see is there correlation of station that `member` user frequently used, rather than other station. If there's, we can put ads between that station to pull `casual` user using our platform.
+
+```{r COUNTD start_station_name, message=FALSE, warning=FALSE}
+tripdata_july2022 %>%
+  group_by(member_casual, start_station_name) %>%
+  summarize(count=n()) %>%
+  top_n(3, count) %>% 
+  ungroup() %>%
+  arrange(desc(count)) %>%
+  as.data.frame()
+
+tripdata_august2022 %>%
+  group_by(member_casual, start_station_name) %>%
+  summarize(count=n()) %>%
+  top_n(3, count) %>% 
+  ungroup() %>%
+  arrange(desc(count)) %>%
+  as.data.frame()
+
+tripdata_september2022 %>%
+  group_by(member_casual, start_station_name) %>%
+  summarize(count=n()) %>%
+  top_n(3, count) %>% 
+  ungroup() %>%
+  arrange(desc(count)) %>%
+  as.data.frame()
+
+tripdata_october2022 %>%
+  group_by(member_casual, start_station_name) %>%
+  summarize(count=n()) %>%
+  top_n(3, count) %>%
+  ungroup() %>%
+  arrange(desc(count)) %>%
+  as.data.frame()
+```
+
+By knowing what frequently our different type of user starting to used our platform. We can put some ads in that particular station that Casual user frequently come, and offer them the benefit of changing from Casual user to annual Member.
+
+## Frequently bike type that used based of user type
+
+```{r, warning=FALSE, message=FALSE}
+tripdata_july2022 %>%
+  group_by(member_casual, rideable_type) %>%
+  summarize(count=n()) %>%
+  top_n(1, count) %>%
+  ungroup() %>%
+  as.data.frame()
+
+tripdata_august2022 %>%
+  group_by(member_casual, rideable_type) %>%
+  summarize(count=n()) %>%
+  top_n(1, count) %>%
+  ungroup() %>%
+  as.data.frame()
+
+tripdata_september2022 %>%
+  group_by(member_casual, rideable_type) %>%
+  summarize(count=n()) %>%
+  top_n(1, count) %>%
+  ungroup() %>%
+  as.data.frame()
+
+tripdata_october2022 %>%
+  group_by(member_casual, rideable_type) %>%
+  summarize(count=n()) %>%
+  top_n(1, count) %>%
+  ungroup() %>%
+  as.data.frame()
+```
+
+# Key Finding
+
+* `Casual` rider is more likely to ride and spend more time in the platform compared to `Member`. With average of `casual` rider distance is **4.8 Kilometer** compare to annual `member` **4.3 Kilometer**. And the total trip of `casual` rider is **20 minutes** while annual `member` is only **12 minutes**
+
+* Frequent station `casual` user used is **Streeter Dr & Grand Ave** with total count of `r (11746+9602+6989+4362)` times.
+
+* The type of bicycle that `casual` rider usually ride is `electric bike`, with total of `r print(218905+203966+171496+134807)` casual riders choose electric bike compare to other type of bike. And meanwhile `member` user splited into two type of bike, electric bike with total count `r print(203875+197704)` and classic bike `r print(218905+215328)`
+
+# Conclusion
+
+From our analysis before, there some pattern that we can take. `Casual` user tend to cyclist with long distance compare to `annual member`, and they considering take much more time using the platform if you compare them to `annual member`. This can be:
+
+1. Using platform as single-ride passes or full-day passes is more inexpensive compare to becoming annual member.
+
+2. Cyclistic already give benefit if `casual` user want to convert to 'member' user. But this information is not widely know to all the user.
+
+**For this problem, we provide some solution:**
+
+1. Give some advantage if our user want to change into annual member. And make a list of some benefit between `casual rider` and `member rider` so our user can compared it more clearly.
+
+2. Promote it distinctly, by commercialize it by using ads in one of our frequently station that our user used.
+
+3. Put ads in one of frequent station that 'casual' rider tend to be. So the message would be directly to the target audience.
+
+----
