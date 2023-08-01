@@ -3,11 +3,7 @@ title: "Cyclistic_bike_share_case"
 author: "Nathasya Pramudita"
 date: "2023-06-27"
 output:
-  html_document:
-    code_folding: show
-    toc: yes
-    toc_depth: 3
-    theme: journal
+  github_document
 ---
 
 ```{r setup, include=FALSE}
